@@ -1,1 +1,80 @@
 # cuda-q-tutorial
+
+Learning [NVIDIA CUDA-Q](https://nvidia.github.io/cuda-quantum/) by writing and
+verifying real quantum circuits on a local GPU (RTX 4070, via WSL2 + Miniconda).
+Every script here was actually run against the `nvidia` GPU simulator target and
+checked against a known-correct answer (brute force, classical ground truth, or
+hand-derived math) rather than just assumed to work.
+
+## Setup
+
+CUDA-Q has no native Windows build - everything runs inside WSL2 Ubuntu, in a
+conda `base` environment:
+
+```
+wsl -d Ubuntu -- bash -lc "source ~/miniconda3/bin/activate base && python your_script.py"
+```
+
+## `hello_cudaq.py`
+
+A from-scratch Bell-pair walkthrough: superposition, entanglement, measurement,
+verbose wrapper kernels for `h`/`x`/`mz` (since those are recognized by CUDA-Q's
+compiler purely by literal spelling, not as real Python objects), a fixed random
+seed for reproducibility, and hand-worked comments explaining the state at each
+step.
+
+## `nvidia-cudaq-tutorials/`
+
+NVIDIA's official CUDA-Q tutorials, rewritten by hand (not copy-pasted) for
+readability, each one run and verified:
+
+| File | Topic |
+|---|---|
+| `01_building_kernels.py` | Kernel composition, GHZ state, adjoint gates |
+| `02_measuring_kernels.py` | Mid-circuit measurement, classical feed-forward |
+| `03_executing_kernels.py` | `sample()` vs `run()` vs `observe()` vs `get_state()` |
+| `04_operators.py` | Spin operators, a from-scratch mini-VQE |
+| `05_optimizers_gradients.py` | Adam, SPSA, and SciPy COBYLA on a VQE problem |
+| `06_ptsbe.py` | Pre-Trajectory Sampling with Batch Execution (noisy circuits) |
+| `07_quantum_teleportation.py` | Teleporting a qubit via a Bell pair + classical bits |
+| `08_grovers_algorithm.py` | Grover's search, verified against the classic overshoot curve |
+| `09_shors_algorithm.py` | Shor's algorithm factoring 15 = 3x5, via a custom modular-exponentiation gate |
+
+## `jans_life_quantum_sim.py`
+
+A fun one: encodes the real branching life-decisions of Jan Dolski (from the
+video game *The Alters*) as an entangled decision tree, and samples it to find
+"the most likely Jan."
+
+## The Schrodinger's \* series
+
+Each script pairs a genuine CUDA-Q quantum mechanism (superposition, entangling
+gates, phase, mid-circuit measurement) with a story that makes the mechanism
+intuitive - and each one is verified against classical ground truth, brute
+force, or hand-derived math, not just run once and eyeballed.
+
+| File | What it demonstrates |
+|---|---|
+| `schrodingers_christmas.py` | A dynamically-sized entangled "graph" (N kids, each correlated with their own gift box) |
+| `schrodingers_sudoku.py` | Solving a genuinely hard Sudoku via classical backtracking + a real quantum coin flip at each ambiguous decision |
+| `schrodingers_dungeon.py` | A from-scratch, honestly-scoped quantum take on Wave Function Collapse procedural generation |
+| `schrodingers_game_of_life.py` | Conway's Game of Life with a quantum-seeded (not pseudo-random) initial board, rendered live with pygame |
+| `schrodingers_detective.py` | A real quantum eraser: measuring in a different basis destroys a correlation without undoing any gate |
+| `schrodingers_epidemic.py` | Infection spread on a real graph with a cycle - showing gate order along a cycle genuinely changes the outcome |
+| `schrodingers_higher_order.py` | 2nd- and 3rd-order "uncertainty about uncertainty," verified via nested conditional probabilities |
+| `schrodingers_interval_scheduling.py` | Weighted interval scheduling solved by a Grover oracle built directly from the interval conflict graph (no DP table) |
+| `schrodingers_shipping.py` | The (NP-hard) multi-berth Berth Allocation Problem - and a real, honest demonstration of Grover's oscillation failure mode when the marked fraction exceeds 50% |
+| `schrodingers_tic_tac_toe.py` | Quantum Tic-Tac-Toe's "spooky mark" cycle collapse, shown to be mechanically identical to a GHZ state |
+
+## Weighted interval scheduling, three ways
+
+A single problem solved three times, each version verified against the one
+before it - CPU, to real GPU (SIMT) parallelism, to quantum:
+
+- `01_cpu_interval_scheduling.py` - plain sequential Python DP (the reference).
+- `02_cuda_simt_interval_scheduling.py` - a real CUDA C kernel (compiled via
+  NVRTC, through CuPy's `RawKernel`) parallelizes the genuinely-parallelizable
+  part (computing each interval's compatibility pointer), while the DP
+  recurrence itself stays sequential since it has a real data dependency.
+- `03_cudaq_interval_scheduling.py` - the quantum version: no DP table, an
+  entangling gate per conflicting pair of intervals, Grover amplification.
