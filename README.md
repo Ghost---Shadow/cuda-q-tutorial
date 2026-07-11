@@ -47,11 +47,40 @@ qubit with a Bell pair + 2 classical bits, this moves 2 known classical bits
 with a Bell pair + 1 physically-transmitted qubit. Verified against all 4
 possible message pairs, every shot, on the `nvidia` simulator.
 
+## `teleportation.py`
+
+A standalone deep-dive into `07_quantum_teleportation.py`'s protocol, built to
+answer a series of "wait, but why" questions rather than just show the happy
+path: proves the Bell-pair setup must precede Alice's CNOT (swapping the two
+breaks teleportation), proves Bob's qubit carries zero information before the
+classical bits arrive (no-signaling), proves both classical bits are
+structurally required (dropping either is invisible in one measurement basis
+but breaks the other), and isolates Bob's correction step into a fully
+standalone proof (1 qubit + 2 bits, no message qubit, no sender qubit, no
+entanglement in scope at all).
+
 ## `jans_life_quantum_sim.py`
 
 A fun one: encodes the real branching life-decisions of Jan Dolski (from the
 video game *The Alters*) as an entangled decision tree, and samples it to find
 "the most likely Jan."
+
+## `schrodingers_sales_funnel.py`
+
+A B2B sales funnel modeled as a chain of conditional quantum coin flips
+(Lead -> MQL -> SQL -> Opportunity -> Closed-Won), verified against classical
+funnel math - plus a second part reusing `schrodingers_detective.py`'s quantum
+eraser mechanism as an honest, explicitly-labeled *analogy* for multi-touch
+marketing attribution ambiguity (same underlying data, different "lens,"
+different credit assigned) - not a claim that CRM data behaves quantum
+mechanically.
+
+## `executive_summary.md`
+
+A business-facing summary of what this project's demos actually show about
+quantum computing's real, current capabilities (true randomness, amplitude
+amplification, correlated-uncertainty modeling) versus hype - source material
+for a follow-up slide deck.
 
 ## The Schrodinger's \* series
 
