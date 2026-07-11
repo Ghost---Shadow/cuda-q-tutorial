@@ -149,25 +149,52 @@ def mark_infeasible(decisions: cudaq.qview):
     named decision-qubit variables instead of slicing one shared
     qview).
     """
+    # Qubit flow (2 ancillas, compute -> use -> uncompute, all borrowed
+    # and returned to |0> so they never leak into the final measurement):
+    #   decisions[0:3], decisions[3:6] : read-only CONTROLS throughout -
+    #     never modified, since they're the actual answer we're solving
+    #     for and must stay live for every later Grover iteration.
+    #   group_violated[0], group_violated[1] : written by the two
+    #     multi-controlled x.ctrl calls below (TARGETS), then read as
+    #     controls into controlled_nand, then unwritten (returned to
+    #     |0>) by literally repeating the same x.ctrl calls a second
+    #     time - XOR-based compute is its own inverse.
+    #   any_violation : written once by controlled_nand, read by the
+    #     z-sandwich that does the actual phase flip, then unwritten by
+    #     a second controlled_nand call before the qubit goes out of
+    #     scope.
     group_violated = cudaq.qvector(2)
     any_violation = cudaq.qubit()
 
+    # COMPUTE: group_violated[g] becomes 1 iff every ship in group g is
+    # included (decisions[...] all |1>) - decisions are CONTROLS,
+    # group_violated are TARGETS.
     x.ctrl(decisions[0:3], group_violated[0])  # group (S0, S1, S2)
     x.ctrl(decisions[3:6], group_violated[1])  # group (S3, S4, S5)
 
-    # any_violation = OR(group_violated) via NAND(NOT each)
+    # any_violation = OR(group_violated) via NAND(NOT each). The two
+    # x() calls temporarily flip group_violated so controlled_nand's
+    # AND-then-NOT reads as an OR of the ORIGINAL bits; group_violated
+    # is CONTROL into controlled_nand, any_violation is its TARGET.
     x(group_violated[0])
     x(group_violated[1])
     controlled_nand(group_violated, any_violation)
     x(group_violated[0])
     x(group_violated[1])
 
-    # Mark the FEASIBLE branch (any_violation == 0) with a phase flip.
+    # USE: mark the FEASIBLE branch (any_violation == 0) with a phase
+    # flip - any_violation is read AND written here, but only its
+    # phase changes, not its measured value (X, Z, X is self-inverse on
+    # the |0> component - see the uncompute discussion in the module
+    # docstring's sibling script, schrodingers_interval_scheduling.py).
     x(any_violation)
     z(any_violation)
     x(any_violation)
 
-    # Uncompute.
+    # UNCOMPUTE: run the exact same compute steps again, in reverse
+    # order, to return every ancilla to |0> - required so
+    # group_violated/any_violation don't stay entangled with decisions
+    # and corrupt the interference this oracle depends on.
     x(group_violated[0])
     x(group_violated[1])
     controlled_nand(group_violated, any_violation)
@@ -192,6 +219,15 @@ def unprepare_biased(decisions: cudaq.qview):
 
 @cudaq.kernel
 def diffusion(decisions: cudaq.qview):
+    # Qubit flow: every decisions[i] passes through 3 stages in order -
+    # unprepare (rotate the biased basis back to computational |0...0>),
+    # a multi-controlled phase flip on |0...0> specifically (decisions[0:-1]
+    # as CONTROLS, decisions[-1] as TARGET, sandwiched in x() so the
+    # control condition becomes "all zero" instead of "all one"), then
+    # re-prepare (rotate back into the biased basis). Net effect: every
+    # amplitude gets reflected around the biased-mean amplitude, not
+    # just the uniform mean - this is what "weighted Grover diffusion"
+    # means concretely, gate by gate.
     unprepare_biased(decisions)
     for i in range(NUM_SHIPS):
         x(decisions[i])
@@ -203,6 +239,13 @@ def diffusion(decisions: cudaq.qview):
 
 @cudaq.kernel
 def quantum_berth_search(iterations: int) -> list[bool]:
+    # Qubit flow: decisions is written once by prepare_biased (moves
+    # every qubit from |0> into its individually-biased superposition),
+    # then alternately read-and-rewritten by mark_infeasible (phase-only
+    # - amplitudes' signs change, but decisions never leaves superposition)
+    # and diffusion (amplitude-only - reflects magnitudes, no new phase
+    # info) for `iterations` rounds, then read exactly once, destructively,
+    # by the final mz. No qubit is measured until that very last line.
     decisions = cudaq.qvector(NUM_SHIPS)
     prepare_biased(decisions)
 

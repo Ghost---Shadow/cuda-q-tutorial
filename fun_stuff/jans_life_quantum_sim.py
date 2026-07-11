@@ -114,6 +114,22 @@ def jans_life_paths() -> list[bool]:
     # measurement below is a single collapse of Jan's whole life at
     # once, not several separate little collapses that happen to be
     # written on the same line.
+    #
+    # Qubit flow (each qubit is written by exactly one biased ry/h
+    # below, then read once - by the final mz - except second_choice
+    # and third_choice, which get a second, entangling touch from the
+    # ry.ctrl correction near the end):
+    #   qubits[is_tabula_rasa] : ry only, never touched again
+    #   qubits[is_formative]   : ry only, never touched again
+    #   qubits[stayed_home]    : h, then re-read as a CONTROL below
+    #   qubits[second_choice]  : h, then briefly flipped and re-read as
+    #                            a CONTROL below (net effect on its own
+    #                            marginal: none - see the X-sandwich)
+    #   qubits[third_choice]   : h, then as TARGET of the correction
+    #
+    # All five stay in one coherent superposition the whole time -
+    # every "branch point" below is a gate, never a measurement, so
+    # nothing here collapses anything.
     qubits = cudaq.qvector(5)
     is_tabula_rasa, is_formative, stayed_home, second_choice, third_choice = 0, 1, 2, 3, 4
 
@@ -130,7 +146,8 @@ def jans_life_paths() -> list[bool]:
     h(qubits[second_choice])  # doubles as Doctor(0)/Shrink(1) coin flip
 
     # Branch point 1: stay home with his mother, or leave to continue
-    # his education?
+    # his education? stayed_home will be read again below as a CONTROL
+    # qubit - it isn't measured here, so both branches stay alive.
     h(qubits[stayed_home])
 
     # Branch point 2 (stay-home line) / 2' (leave line, first bit):
@@ -154,6 +171,17 @@ def jans_life_paths() -> list[bool]:
     # Because this is a genuine multi-controlled *rotation* rather than
     # a measurement-triggered classical `if`, all qubits stay entangled
     # and coherent through this step - nothing collapses.
+    #
+    # Qubit flow through these 3 lines: stayed_home and second_choice
+    # are read as CONTROLS (never modified in the sense of changing
+    # their own marginal probability - the x() before and after
+    # second_choice is a sandwich that flips which of its two branches
+    # (0 or 1) triggers the control, then flips it back so its own
+    # H-prepared 50/50 statistics are undisturbed); third_choice is the
+    # only qubit whose own state actually changes here, and only in the
+    # stayed_home=1,second_choice=0 branch - this is what makes
+    # third_choice's probability depend on stayed_home/second_choice,
+    # i.e. the one deliberate entangling correlation in this script.
     x(qubits[second_choice])
     ry.ctrl(CORRECTION_ANGLE, qubits[stayed_home], qubits[second_choice],
             qubits[third_choice])

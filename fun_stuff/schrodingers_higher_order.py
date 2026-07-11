@@ -56,9 +56,28 @@ def schrodinger_chain(order: int) -> list[bool]:
     own coin flip is itself gated by whether the level above it
     decided to flip one.
     """
+    # Qubit flow: chain[i] is written exactly once, either by an
+    # unconditional h (chain[0] only) or by a CONTROLLED h reading
+    # chain[i-1] as its control - so information only ever flows
+    # "downward," from lower index to the next one up, never back.
+    #
+    # order=2, State tracking (chain = [box, cat]):
+    #   |0>_box |0>_cat
+    #   h(chain[0]):          (|0>+|1>)_box |0>_cat
+    #   h.ctrl(chain[0],chain[1]):
+    #     box=|0> branch: cat untouched -> |0>_box |0>_cat
+    #     box=|1> branch: cat gets its own real H -> |1>_box (|0>+|1>)_cat
+    #     Combined (unnormalized): |0,0> + |1,0> + |1,1>
+    #   Reading off P(cat=1) = P(box=1)*P(cat=1|box=1) = 0.5*0.5 = 0.25 -
+    #   matches p_does_cat_die's predicted 0.250 below.
     chain = cudaq.qvector(order)
     h(chain[0])
     for i in range(1, order):
+        # chain[i-1] is CONTROL (read, not modified again after this
+        # point), chain[i] is TARGET (its own H only fires along the
+        # control's |1> branch - the |0> branch leaves chain[i] at a
+        # deterministic |0>, which is exactly the "box never flipped a
+        # coin, cat can't die" case).
         h.ctrl(chain[i - 1], chain[i])
     return mz(chain)
 

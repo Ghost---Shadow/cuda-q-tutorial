@@ -31,6 +31,26 @@ Protocol:
   5. qubits[2] now holds the original message state exactly - even
      though it started this protocol as one half of a Bell pair with
      no relation at all to the message.
+
+Code structure is deliberately "nothing up my sleeve": alice_room() is
+the only function that ever sees message_angle, and it never receives
+qubits[2] - Alice physically cannot act on Bob's qubit. bob_room() is
+the only function that touches qubits[2], and its signature has no
+message_angle parameter - it only receives the two classical bits
+sender_bit_0/sender_bit_1, exactly as the real protocol requires. The
+"unknown state" is moved entirely through the shared qubit plus those
+two bits, never through a shared Python variable.
+
+What physically moves, made explicit: receiver_qubit (qubits[2]) never
+travels anywhere during the protocol - it's already sitting at Bob's
+location from the moment prepare_shared_bell_pair() distributes the
+Bell pair, and it stays there the whole time. The *only* thing that
+crosses from Alice to Bob mid-protocol is 2 classical bits, carried by
+classical_channel_to_bob() below - no qubit transport step exists in
+this protocol at all. That's the entire point of teleportation, and
+the reason it's the mirror image of superdense_coding.py (see that
+file's send_qubit_to_bob(), where a qubit *is* the thing physically
+carried, and 2 classical bits are what Alice picks locally instead).
 """
 
 import math
@@ -39,70 +59,95 @@ import cudaq
 
 
 @cudaq.kernel
-def teleport_and_measure_z(message_angle: float) -> bool:
-    """Teleports a message qubit prepared by ry(message_angle), then
-    measures the destination qubit directly (Z basis).
-
-    ry(message_angle) prepares qubits[0] as cos(angle/2)|0> +
-    sin(angle/2)|1>, so its Z-expectation is cos(message_angle) - a
-    single tunable "unknown state" to teleport and check.
-    """
-    qubits = cudaq.qvector(3)
-    ry(message_angle, qubits[0])
-
-    # Step 1: entangle qubits[1] and qubits[2] into a Bell pair.
-    h(qubits[1])
-    x.ctrl(qubits[1], qubits[2])
-
-    # Step 2: entangle the message qubit with the sender's half of the
-    # pair. This doesn't move any information yet - it just correlates
-    # the message with the measurement basis we're about to use.
-    x.ctrl(qubits[0], qubits[1])
-    h(qubits[0])
-
-    # Step 3: measure both of the sender's qubits.
-    sender_bit_0 = mz(qubits[0])
-    sender_bit_1 = mz(qubits[1])
-
-    # Step 4: classically-controlled corrections on the receiver's
-    # qubit. Depending on which of the 4 possible outcomes the sender
-    # measured, qubits[2] is currently the message state up to a known,
-    # fixable Pauli error - these corrections undo exactly that error.
-    if sender_bit_0:
-        z(qubits[2])
-    if sender_bit_1:
-        x(qubits[2])
-
-    # Step 5: qubits[2] now holds the original message state. Measure
-    # it directly to check the Z-basis statistics match the original.
-    return mz(qubits[2])
+def prepare_shared_bell_pair(sender_qubit: cudaq.qubit, receiver_qubit: cudaq.qubit):
+    """The trusted setup phase, run before Alice or Bob do anything: a
+    Bell pair, split so Alice keeps one half (sender_qubit) and Bob
+    keeps the other (receiver_qubit)."""
+    h(sender_qubit)
+    x.ctrl(sender_qubit, receiver_qubit)
 
 
 @cudaq.kernel
-def teleport_and_measure_x(message_angle: float) -> bool:
-    """Identical to teleport_and_measure_z, but measures the
-    destination qubit in the X basis instead (via H then mz) - lets us
-    check that teleportation preserved the *full* quantum state, not
-    just its Z-basis statistics."""
-    qubits = cudaq.qvector(3)
-    ry(message_angle, qubits[0])
+def alice_room(message_qubit: cudaq.qubit, sender_qubit: cudaq.qubit,
+                message_angle: float) -> list[bool]:
+    """Alice's entire world: the message qubit and her half of the Bell
+    pair. She never receives receiver_qubit as a parameter, so this
+    function is structurally incapable of acting on Bob's qubit -
+    everything she sends him has to go through the two returned bits.
 
-    h(qubits[1])
-    x.ctrl(qubits[1], qubits[2])
+    ry(message_angle) prepares the message qubit as
+    cos(angle/2)|0> + sin(angle/2)|1>, so its Z-expectation is
+    cos(message_angle) - a single tunable "unknown state" to teleport
+    and check.
+    """
+    ry(message_angle, message_qubit)
 
-    x.ctrl(qubits[0], qubits[1])
-    h(qubits[0])
+    # Entangle the message qubit with the sender's half of the pair.
+    # This doesn't move any information yet - it just correlates the
+    # message with the measurement basis we're about to use.
+    x.ctrl(message_qubit, sender_qubit)
+    h(message_qubit)
 
-    sender_bit_0 = mz(qubits[0])
-    sender_bit_1 = mz(qubits[1])
+    # Measure both of Alice's qubits. These two classical bits are the
+    # *only* thing that leaves this function.
+    sender_bit_0 = mz(message_qubit)
+    sender_bit_1 = mz(sender_qubit)
+    return [sender_bit_0, sender_bit_1]
 
+
+@cudaq.kernel
+def classical_channel_to_bob(sender_bit_0: bool, sender_bit_1: bool) -> list[bool]:
+    """The physical transport step - and the *only* one in this whole
+    protocol. Unlike superdense_coding.py's send_qubit_to_bob(), this
+    is not standing in for a qubit crossing space: sender_bit_0 and
+    sender_bit_1 are ordinary classical bits, sendable by phone, radio,
+    or carrier pigeon with a note - anything slower than light is fine,
+    which is exactly why teleportation doesn't violate relativity. It's
+    still named and called explicitly, so "these 2 bits reached Bob"
+    is a real step in the call sequence rather than something implied
+    by bob_room() simply being handed the values."""
+    return [sender_bit_0, sender_bit_1]
+
+
+@cudaq.kernel
+def bob_room(receiver_qubit: cudaq.qubit, sender_bit_0: bool, sender_bit_1: bool,
+             measure_x_basis: bool) -> bool:
+    """Bob's entire world: his half of the Bell pair - which has been
+    sitting at his location since prepare_shared_bell_pair() and never
+    physically moves again - plus the two classical bits that arrived
+    via classical_channel_to_bob(). Never message_angle itself.
+    Depending on which of the 4 possible outcomes Alice measured,
+    receiver_qubit is currently the message state up to a known,
+    fixable Pauli error; these corrections undo exactly that error."""
     if sender_bit_0:
-        z(qubits[2])
+        z(receiver_qubit)
     if sender_bit_1:
-        x(qubits[2])
+        x(receiver_qubit)
 
-    h(qubits[2])
-    return mz(qubits[2])
+    # measure_x_basis is Bob's own choice of what to check, not a
+    # secret from Alice - flips to the X basis before measuring so we
+    # can verify the *full* state was moved, not just its Z statistics.
+    if measure_x_basis:
+        h(receiver_qubit)
+    return mz(receiver_qubit)
+
+
+@cudaq.kernel
+def teleportation_protocol(message_angle: float, measure_x_basis: bool) -> bool:
+    """The main driver: allocates all three qubits and calls each
+    step in strict protocol order - shared setup, then Alice, then the
+    classical transport, then Bob. This is the only place that "sees"
+    both message_angle and the qubits, and even it never applies a
+    gate directly."""
+    qubits = cudaq.qvector(3)
+    message_qubit = qubits[0]
+    sender_qubit = qubits[1]
+    receiver_qubit = qubits[2]
+
+    prepare_shared_bell_pair(sender_qubit, receiver_qubit)
+    sender_bits = alice_room(message_qubit, sender_qubit, message_angle)
+    classical_bits = classical_channel_to_bob(sender_bits[0], sender_bits[1])
+    return bob_room(receiver_qubit, classical_bits[0], classical_bits[1], measure_x_basis)
 
 
 def bit_expectation(bits: list) -> float:
@@ -126,8 +171,8 @@ if __name__ == "__main__":
     # analytic expectation values.
     print("angle    <Z> measured  <Z> expected   <X> measured  <X> expected")
     for message_angle in [0.0, math.pi / 3, math.pi / 2, 2.1]:
-        z_bits = cudaq.run(teleport_and_measure_z, message_angle, shots_count=shots)
-        x_bits = cudaq.run(teleport_and_measure_x, message_angle, shots_count=shots)
+        z_bits = cudaq.run(teleportation_protocol, message_angle, False, shots_count=shots)
+        x_bits = cudaq.run(teleportation_protocol, message_angle, True, shots_count=shots)
         z_measured = bit_expectation(z_bits)
         x_measured = bit_expectation(x_bits)
         z_expected = math.cos(message_angle)
