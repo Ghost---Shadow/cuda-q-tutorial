@@ -40,6 +40,13 @@ readability, each one run and verified:
 | `08_grovers_algorithm.py` | Grover's search, verified against the classic overshoot curve |
 | `09_shors_algorithm.py` | Shor's algorithm factoring 15 = 3x5, via a custom modular-exponentiation gate |
 
+## `superdense_coding.py`
+
+The mirror image of `07_quantum_teleportation.py`: instead of moving 1 unknown
+qubit with a Bell pair + 2 classical bits, this moves 2 known classical bits
+with a Bell pair + 1 physically-transmitted qubit. Verified against all 4
+possible message pairs, every shot, on the `nvidia` simulator.
+
 ## `jans_life_quantum_sim.py`
 
 A fun one: encodes the real branching life-decisions of Jan Dolski (from the
