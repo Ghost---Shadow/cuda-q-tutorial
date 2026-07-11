@@ -226,7 +226,7 @@ if __name__ == "__main__":
     cudaq.set_target("nvidia")
     cudaq.set_random_seed(42)
 
-    shots = 20000
+    shots = 100
     raw_results = cudaq.run(jans_life_paths, shots_count=shots)
     alters = [decode_alter(bits) for bits in raw_results]
     histogram = Counter(alters)

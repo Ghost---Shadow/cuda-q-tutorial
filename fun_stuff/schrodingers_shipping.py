@@ -311,6 +311,12 @@ if __name__ == "__main__":
     print("script's instance, MOST subsets here are already feasible.")
 
     cudaq.set_random_seed(42)
+    # Deliberately NOT dropped to 100 like the rest of fun_stuff/: the
+    # oscillation table below checks measured probabilities against a
+    # theoretical curve that dips as low as 0.3% at some iteration
+    # counts - unresolvable at 100 shots (+-1% noise floor), which
+    # would make the "measured matches theory" claim printed below
+    # simply false rather than just noisier.
     shots = 4000
 
     print()

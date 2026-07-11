@@ -205,7 +205,7 @@ def run_third_order(shots: int) -> None:
 if __name__ == "__main__":
     cudaq.set_target("nvidia")
     cudaq.set_random_seed(42)
-    shots = 1000
+    shots = 100
 
     run_second_order(shots)
     run_third_order(shots)

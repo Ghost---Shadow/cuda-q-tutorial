@@ -151,7 +151,7 @@ def superdense_coding_protocol(bit0: bool, bit1: bool) -> list[bool]:
 if __name__ == "__main__":
     cudaq.set_target("nvidia")
     cudaq.set_random_seed(7)
-    shots = 1000
+    shots = 100
 
     print("bit0  bit1  ->  measured0  measured1  match")
     all_match = True
