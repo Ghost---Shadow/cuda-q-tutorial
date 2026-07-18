@@ -85,6 +85,27 @@ then rendered to an actual PNG. Gray comes out with `|Bloch vector| = 0` -
 the maximally mixed state - which is a satisfying, literal way to say
 "gray is the color with no spin information left."
 
+## `quantum_monitor_controller.py`
+
+Runs `electron_spin_monitor.py` backwards: instead of "here's an RF pulse
+setting, what color does it make," start from the desired color and get
+back the RF pulse setting that produces it - via measurement collapse, not
+by inverting a function. The product framing: a real monitor controller
+would have a factory-calibrated table (pulse setting -> resulting spin
+direction -> color); given a target image, a classical controller has to
+invert that table, worst case an O(N) scan per pixel. This one instead
+marks the one candidate pulse code (out of 8, one per RGB-cube corner)
+known to produce the desired color and runs Grover's search - the exact
+same oracle+diffusion pattern as
+`nvidia-cudaq-tutorials/08_grovers_algorithm.py`, just retargeted at
+3-qubit pulse codes - amplifying it to ~94.5% hit probability in 2
+iterations (matching the theoretical prediction exactly). Imports
+`electron_spin_monitor.py` to then actually drive the retrieved codes
+through the real spin-preparation circuit and render the result, verifying
+a full round trip: a 3x3 checkerboard test pattern goes in, gets retrieved
+purely via Grover search + collapse, and the driven picture matches the
+original exactly.
+
 ## `novel_gates/`
 
 Custom gates built via `cudaq.register_operation` or plain kernel
