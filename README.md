@@ -81,7 +81,6 @@ composition, each one analyzed for what it actually does mechanically:
 | `maxwells_demon.py` | A coherent, reversible Maxwell's demon contrasted with an irreversible measurement |
 | `quantum_wall.py` | Quantum tunneling through a wall using real WKB transmission math |
 | `fresnel_lens.py` | A 5-zone Fresnel lens built as a genuine interference/recombination circuit, verified with exact `get_state()` checks |
-| `nand_xor.py` | Corrects a common mix-up (CNOT is XOR, not NAND - NAND isn't even reversible, so it can't be a quantum gate on its own), then builds a *reversible* NAND (Toffoli + an ancilla preset to `|1>`) and wires 4 of them into the classic NAND-only XOR circuit - verified against both the truth table and a native 2-CNOT XOR, on fixed inputs and on a full superposition over both inputs |
 
 ## `jans_life_quantum_sim.py`
 
