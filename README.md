@@ -71,6 +71,20 @@ every single sampled shot's output is the correctly sorted version of that
 same shot's input, and that the comparator's helper ancillas uncompute back
 to clean `|0>` every time.
 
+## `electron_spin_monitor.py`
+
+A made-up display where each pixel is one electron and its color is its
+spin direction on the Bloch sphere: `(R,G,B) -> (2R-1,2G-1,2B-1)/sqrt(3)`.
+The 8 corners of the RGB cube (every channel fully on or off) land exactly
+on the sphere's surface as genuine pure states; anything else - the demo's
+3x3 grid includes 50% gray - needs a real mixed state instead, built the
+same way as `entanglement_propagation.py`'s mixed marginals: entangle the
+pixel qubit with a throwaway ancilla and never measure it. Verified
+exactly via `get_state()` and a numpy partial trace (no sampling noise),
+then rendered to an actual PNG. Gray comes out with `|Bloch vector| = 0` -
+the maximally mixed state - which is a satisfying, literal way to say
+"gray is the color with no spin information left."
+
 ## `novel_gates/`
 
 Custom gates built via `cudaq.register_operation` or plain kernel
