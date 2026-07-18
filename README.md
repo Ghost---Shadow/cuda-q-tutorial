@@ -71,37 +71,6 @@ every single sampled shot's output is the correctly sorted version of that
 same shot's input, and that the comparator's helper ancillas uncompute back
 to clean `|0>` every time.
 
-## `quantum_attention.py`
-
-LLM attention translated as literally as possible into gates: a query and 3
-key vectors get scored by dot product and softmax'd - plain classical math,
-same as a real attention layer - but the softmax weights are then
-amplitude-encoded directly into a 2-qubit key register's superposition
-(`sqrt(weight_i)` on each branch, so sampling that register up front IS
-sampling from the softmax, exactly). Then one
-value qubit gets a controlled `RY(arccos(value_i))` rotation per key
-branch, and - crucially - the key register is never conditioned on. That
-makes the value qubit's marginal state a genuine probabilistic mixture of
-the 3 branches, and `<Z>` on that mixture is provably
-`sum_i softmax(query.key_i) * value_i` - the literal attention output -
-because expectation values are linear over mixtures. Verified against the
-classical softmax-attention formula, and against each branch's conditional
-`<Z | key=i>` individually equaling `value_i`.
-
-## `quantum_hash_set.py`
-
-A "hash set" needs no values, just membership - built by importing
-`quantum_attention.py` and treating membership itself as the blended
-value: `+1.0` for members, `-1.0` for non-members. A query vector's
-"contains?" answer is the attention output: a softmax-weighted blend of
-those +-1 scores by similarity to each stored key. Grounded in a real
-result (modern continuous Hopfield networks are provably one attention
-step - Ramsauer et al., "Hopfield Networks is All You Need"), not a made-up
-analogy. Verified on 3 queries: one that confidently matches a member
-(score -> +1), one that confidently matches a non-member (score -> -1),
-and one deliberately ambiguous between a member and a non-member (score ->
-0) - a graceful "not sure" a classical hash set has no way to express.
-
 ## `novel_gates/`
 
 Custom gates built via `cudaq.register_operation` or plain kernel
@@ -155,6 +124,39 @@ force, or hand-derived math, not just run once and eyeballed.
 | `schrodingers_interval_scheduling.py` | Weighted interval scheduling solved by a Grover oracle built directly from the interval conflict graph (no DP table) |
 | `schrodingers_shipping.py` | The (NP-hard) multi-berth Berth Allocation Problem - and a real, honest demonstration of Grover's oscillation failure mode when the marked fraction exceeds 50% |
 | `schrodingers_tic_tac_toe.py` | Quantum Tic-Tac-Toe's "spooky mark" cycle collapse, shown to be mechanically identical to a GHZ state |
+
+Two more that don't fit the table (they're not story-first, they're a
+mechanism-first pair building on each other):
+
+### `quantum_attention.py`
+
+LLM attention translated as literally as possible into gates: a query and 3
+key vectors get scored by dot product and softmax'd - plain classical math,
+same as a real attention layer - but the softmax weights are then
+amplitude-encoded directly into a 2-qubit key register's superposition
+(`sqrt(weight_i)` on each branch, so sampling that register up front IS
+sampling from the softmax, exactly). Then one value qubit gets a controlled
+`RY(arccos(value_i))` rotation per key branch, and - crucially - the key
+register is never conditioned on. That makes the value qubit's marginal
+state a genuine probabilistic mixture of the 3 branches, and `<Z>` on that
+mixture is provably `sum_i softmax(query.key_i) * value_i` - the literal
+attention output - because expectation values are linear over mixtures.
+Verified against the classical softmax-attention formula, and against each
+branch's conditional `<Z | key=i>` individually equaling `value_i`.
+
+### `quantum_hash_set.py`
+
+A "hash set" needs no values, just membership - built by importing
+`quantum_attention.py` and treating membership itself as the blended
+value: `+1.0` for members, `-1.0` for non-members. A query vector's
+"contains?" answer is the attention output: a softmax-weighted blend of
+those +-1 scores by similarity to each stored key. Grounded in a real
+result (modern continuous Hopfield networks are provably one attention
+step - Ramsauer et al., "Hopfield Networks is All You Need"), not a made-up
+analogy. Verified on 3 queries: one that confidently matches a member
+(score -> +1), one that confidently matches a non-member (score -> -1),
+and one deliberately ambiguous between a member and a non-member (score ->
+0) - a graceful "not sure" a classical hash set has no way to express.
 
 ## Weighted interval scheduling, three ways
 
