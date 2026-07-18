@@ -59,6 +59,18 @@ but breaks the other), and isolates Bob's correction step into a fully
 standalone proof (1 qubit + 2 bits, no message qubit, no sender qubit, no
 entanglement in scope at all).
 
+## `quantum_sorting_network.py`
+
+A real answer to "can you sort qubits while they're in superposition?" A
+3-element sorting network (compare (e0,e1), (e1,e2), (e0,e1) again) built
+entirely from reversible gates - Toffoli to compute "x > y" into an ancilla,
+Fredkin (`swap.ctrl`) to conditionally swap - so the whole sort is one
+unitary with no measurement in the middle. Run on a full superposition over
+all 64 possible 3-tuple inputs at once; verified across 2000 shots that
+every single sampled shot's output is the correctly sorted version of that
+same shot's input, and that the comparator's helper ancillas uncompute back
+to clean `|0>` every time.
+
 ## `jans_life_quantum_sim.py`
 
 A fun one: encodes the real branching life-decisions of Jan Dolski (from the
