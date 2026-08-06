@@ -211,6 +211,35 @@ analogy. Verified on 3 queries: one that confidently matches a member
 and one deliberately ambiguous between a member and a non-member (score ->
 0) - a graceful "not sure" a classical hash set has no way to express.
 
+## `leetcode/`, three ways each
+
+Same idea as the interval-scheduling series below, applied to LeetCode
+problems - CPU reference, real GPU (SIMT) parallelism, then a quantum
+version, each checked against the one before it:
+
+- **5. Longest Palindromic Substring** - `cpu/longest_palindromic_substring.py`
+  (the DP recurrence `dp[i][j] = (s[i]==s[j]) and (j-i<2 or dp[i+1][j-1])`),
+  `cuda/longest_palindromic_substring_cuda.py` (one GPU thread per cell on a
+  DP diagonal - cells on the same diagonal are mutually independent, the
+  diagonal-to-diagonal loop stays sequential since that's a real data
+  dependency), `cuda-q/longest_palindromic_substring_cudaq.py` (no DP table
+  at all - one decision qubit per candidate palindrome, a NAND-based
+  oracle marks "two selected at once" infeasible, Grover amplification
+  biased toward longer candidates picks the winner).
+- **167. Two Sum II (sorted input)** - `cpu/two_sum_ii.py` (two pointers,
+  O(n), exploiting the sortedness - genuinely optimal for this problem),
+  `cuda/two_sum_ii_cuda.py` (deliberately throws the sortedness away: every
+  candidate pair checked in parallel by its own GPU thread, O(n^2) work
+  traded for zero inter-thread dependencies), `cuda-q/two_sum_ii_cudaq.py`
+  (also throws the sortedness away - treats the pairs as an unstructured
+  search space and finds the one that sums to target via Grover's search,
+  the same oracle+diffusion pattern as
+  `nvidia-cudaq-tutorials/08_grovers_algorithm.py`. Honestly scoped: this
+  is O(sqrt(n^2))=O(n) oracle calls, the same order as the two-pointer
+  method, not a speedup - it's here because "find the index satisfying a
+  checkable condition" is exactly Grover's home turf, not because it beats
+  the classical solution for this particular problem).
+
 ## Weighted interval scheduling, three ways
 
 A single problem solved three times, each version verified against the one
