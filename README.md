@@ -106,6 +106,24 @@ a full round trip: a 3x3 checkerboard test pattern goes in, gets retrieved
 purely via Grover search + collapse, and the driven picture matches the
 original exactly.
 
+## `quantum_collatz.py`
+
+"Put the two branches in superposition": instead of classically checking
+if n is even/odd and picking `n/2` or `3n+1`, keep n in superposition and
+let each branch's own parity qubit route it through the correct half of
+the step, coherently, with no measurement until the very end. The
+obstacle: the Collatz step isn't reversible on its own (both 8 and 1 map
+to 4), so it can't be a bare unitary permutation - same problem as
+classical NAND, fixed the same way as everywhere else in this repo: a
+reversible lookup-table oracle per step, writing into a fresh register
+instead of overwriting in place, so the previous register survives as a
+witness. Tracks 4 starting values (2, 3, 5, 6) through 4 steps - 27 qubits
+total (2 selector + 5 x 5-bit value registers), right at the ~1GB
+single-precision statevector line, the practical ceiling for exact
+simulation used throughout this repo. Verified exactly: every shot's FULL
+5-register trajectory, not just the final value, matches that shot's
+classical Collatz walk precisely, across 2000 shots, zero mismatches.
+
 ## `novel_gates/`
 
 Custom gates built via `cudaq.register_operation` or plain kernel
