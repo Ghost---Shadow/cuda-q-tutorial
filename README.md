@@ -124,6 +124,29 @@ simulation used throughout this repo. Verified exactly: every shot's FULL
 5-register trajectory, not just the final value, matches that shot's
 classical Collatz walk precisely, across 2000 shots, zero mismatches.
 
+## `llm_discovered_circuits/`
+
+The reusable ideas from Gu, Kemeny, Yelin and Lukin's *Discovering
+state-of-the-art quantum circuits with large language models*
+(arXiv:2610.22367, included here as `2610.22367v1.pdf`), rebuilt at toy
+scale and verified. The paper's three design principles - route data instead
+of controlling arithmetic, uncompute by decoding branch decisions from the
+live state instead of keeping a history, and spend a failure budget on rare
+inputs - each get a script. The first three are real CUDA-Q circuits
+checked exactly; the last two are classical basis-state simulations (the same
+way the paper's own evaluator checks circuits), because the point they
+verify is that a decoding rule is exact, not an amplitude effect. None of
+this reproduces the paper's headline Toffoli/qubit counts - those need its
+full-size circuits.
+
+| File | What it demonstrates |
+|---|---|
+| `01_conditional_routing.py` | `x += y` or `x += z` by selector: controlled-swap + ONE adder instead of two controlled adders - exactly half the Toffolis (28 -> 14) and 3 fewer qubits, verified on all 1024 inputs in superposition |
+| `02_branch_decoding.py` | A branching computation uncomputed without a history stack: each branch bit is read back out of a register that already holds it (`path += branch * 2^j`) - 7 qubits instead of 9, exact round trip |
+| `03_measurement_based_uncomputation.py` | Clearing a temporary AND with an X-basis measurement + CZ fix instead of a second Toffoli, shown with an interferometer: exact with the fix, 0.625 without it |
+| `04_berlekamp_massey_routing.py` | Reed-Solomon error location over GF(16): the rescaled "replace" update turns both BM branches into one shared update on swapped operands, and the displaced discrepancy is decoded from constant coefficients - checked on ~29k error patterns |
+| `05_divsteps_modular_inversion.py` | Division-free modular inversion whose every branch bit is decoded from the updated state (the paper's Equation 9), verified on all inputs for every prime < 200 and unwound exactly; plus the stopping-time / stack-size failure-budget statistics at 256 bits |
+
 ## `novel_gates/`
 
 Custom gates built via `cudaq.register_operation` or plain kernel
